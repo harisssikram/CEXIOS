@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-surface text-ink font-sans antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbdaea transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #cbdaea;
+  border-radius: 999px;
+}
+
+::selection {
+  background-color: #1e63ff;
+  color: #ffffff;
+}
+
+.focus-ring {
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
+}
+
+.skeleton {
+  @apply relative overflow-hidden bg-line/70 rounded-md;
+  background-image: linear-gradient(
+    90deg,
+    rgba(232, 237, 245, 0.6) 25%,
+    rgba(255, 255, 255, 0.9) 37%,
+    rgba(232, 237, 245, 0.6) 63%
+  );
+  background-size: 400px 100%;
+  @apply animate-shimmer;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
