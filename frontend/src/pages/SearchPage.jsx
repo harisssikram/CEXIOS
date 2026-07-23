@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MagnifyingGlassIcon, GlobeAltIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 import DashboardLayout from "../layouts/DashboardLayout";
@@ -7,41 +7,38 @@ import Input from "../components/ui/Input";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import Pagination from "../components/ui/Pagination";
-import { useDebounce } from "../hooks/useDebounce";
 import { usePagination } from "../hooks/usePagination";
 import projectService from "../services/projectService";
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const debouncedQuery = useDebounce(query, 350);
 
-  useEffect(() => {
-    if (!debouncedQuery.trim()) {
+  const runSearch = () => {
+    const trimmed = query.trim();
+    if (!trimmed) {
       setResults(null);
       setSearched(false);
       return;
     }
-    let cancelled = false;
+    setSubmittedQuery(trimmed);
     setLoading(true);
     setSearched(true);
     projectService
-      .search(debouncedQuery.trim())
-      .then((data) => {
-        if (!cancelled) setResults(data);
-      })
-      .catch(() => {
-        if (!cancelled) toast.error("Search failed. Please try again.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedQuery]);
+      .search(trimmed)
+      .then((data) => setResults(data))
+      .catch(() => toast.error("Search failed. Please try again."))
+      .finally(() => setLoading(false));
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      runSearch();
+    }
+  };
 
   const { pageItems, page, totalPages, nextPage, prevPage, setPage } = usePagination(
     results || [],
@@ -53,19 +50,26 @@ export default function SearchPage() {
       <div className="max-w-3xl mx-auto mb-8">
         <h2 className="text-2xl font-bold text-primary mb-1.5">Find a project</h2>
         <p className="text-muted text-sm">
-          Search before adding a new listing so duplicate projects don't get created.
+          Type the full ticker or project name and press Enter to check if it already exists.
         </p>
       </div>
 
-      <div className="max-w-3xl mx-auto mb-6">
+      <div className="max-w-3xl mx-auto mb-6 flex gap-2">
         <Input
           icon={MagnifyingGlassIcon}
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search project name, ticker or website..."
-          className="py-3.5 text-base shadow-soft"
+          onKeyDown={handleKeyDown}
+          placeholder="Type ticker or project name, then press Enter..."
+          className="py-3.5 text-base shadow-soft flex-1"
         />
+        <button
+          onClick={runSearch}
+          className="px-5 rounded-lg bg-accent text-white font-medium shadow-soft hover:opacity-90 transition-opacity"
+        >
+          Search
+        </button>
       </div>
 
       <Card className="max-w-5xl mx-auto overflow-hidden">
@@ -74,16 +78,16 @@ export default function SearchPage() {
         {!loading && searched && results && results.length === 0 && (
           <EmptyState
             icon={MagnifyingGlassIcon}
-            title={`No matches for "${debouncedQuery}"`}
-            description="Nothing found in the registry. If this is a new project, add it from the Upload Excel page."
+            title={`No matches for "${submittedQuery}"`}
+            description="This project doesn't exist in the registry yet. You can add it from the Upload Excel page."
           />
         )}
 
         {!loading && !searched && (
           <EmptyState
             icon={GlobeAltIcon}
-            title="Start typing to search"
-            description="Results from the shared registry will appear here instantly."
+            title="Type a ticker or name and press Enter"
+            description="Results from the shared registry will appear here."
           />
         )}
 
