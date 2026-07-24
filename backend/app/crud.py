@@ -3,19 +3,42 @@ from sqlalchemy.orm import Session
 from . import models, schemas
 
 
+def _normalize_website(url: str) -> str:
+    """Same normalization used on upload, kept local to avoid a circular import with utils."""
+    if not url:
+        return ""
+    url = url.strip().lower()
+    for prefix in ("https://", "http://"):
+        if url.startswith(prefix):
+            url = url[len(prefix):]
+    if url.startswith("www."):
+        url = url[4:]
+    return url.rstrip("/")
+
+
 def get_project_by_ticker(db: Session, ticker: str):
     return db.query(models.Project).filter(models.Project.ticker == ticker).first()
 
 
-def find_duplicate(db: Session, ticker: str, website: str):
-    """Ticker is the primary key, website is the secondary key."""
-    return (
-        db.query(models.Project)
-        .filter(
-            (models.Project.ticker == ticker) | (models.Project.website == website)
-        )
-        .first()
-    )
+def find_duplicate(db: Session, name: str = None, website: str = None, exclude_id: int = None):
+    """
+    A project counts as a duplicate if its NAME or WEBSITE matches an existing row.
+    Ticker is intentionally excluded -- the same ticker can legitimately be reused.
+    Name comparison is case-insensitive; website comparison ignores http(s)/www/trailing slash.
+    """
+    query = db.query(models.Project)
+    if exclude_id is not None:
+        query = query.filter(models.Project.id != exclude_id)
+
+    norm_name = name.strip().lower() if name else None
+    norm_site = _normalize_website(website) if website else None
+
+    for project in query.all():
+        if norm_name and project.name.strip().lower() == norm_name:
+            return project
+        if norm_site and _normalize_website(project.website) == norm_site:
+            return project
+    return None
 
 
 def create_project(db: Session, project: schemas.ProjectCreate) -> models.Project:
@@ -37,11 +60,18 @@ def list_projects(db: Session, skip: int = 0, limit: int = 500):
 
 
 def search_projects(db: Session, q: str, limit: int = 50):
-    like = f"%{q}%"
+    """
+    EXACT match search (case-insensitive), on ticker OR project name.
+    "btc" only matches a project whose ticker is exactly BTC, or whose
+    name is exactly "btc" -- not projects that merely contain "btc".
+    """
+    q = q.strip()
+    if not q:
+        return []
     return (
         db.query(models.Project)
         .filter(
-            models.Project.ticker.ilike(like) | models.Project.name.ilike(like)
+            (models.Project.ticker.ilike(q)) | (models.Project.name.ilike(q))
         )
         .limit(limit)
         .all()

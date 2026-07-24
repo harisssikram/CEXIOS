@@ -34,10 +34,19 @@ class ProjectResponse(ProjectBase):
     date_added: datetime
 
 
+class UploadRowIssue(BaseModel):
+    row: int
+    name: Optional[str] = None
+    ticker: Optional[str] = None
+    reason: str
+
+
 class UploadResponse(BaseModel):
     added: int
     duplicates: int
     invalid: int
+    duplicate_rows: list[UploadRowIssue] = []
+    invalid_rows: list[UploadRowIssue] = []
 
 
 class UploadRecord(BaseModel):

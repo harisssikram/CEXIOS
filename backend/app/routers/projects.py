@@ -34,7 +34,15 @@ async def upload_excel(
         raise HTTPException(status_code=400, detail="Only .xlsx, .xls, or .csv files are supported.")
 
     contents = await file.read()
-    added, duplicates, invalid = utils.parse_and_import(contents, file.filename, name.strip(), db)
+    added, duplicates, invalid, duplicate_rows, invalid_rows = utils.parse_and_import(
+        contents, file.filename, name.strip(), db
+    )
     crud.record_upload(db, name.strip(), file.filename, added, duplicates, invalid)
 
-    return {"added": added, "duplicates": duplicates, "invalid": invalid}
+    return {
+        "added": added,
+        "duplicates": duplicates,
+        "invalid": invalid,
+        "duplicate_rows": duplicate_rows,
+        "invalid_rows": invalid_rows,
+    }

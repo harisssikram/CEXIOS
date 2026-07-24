@@ -9,8 +9,8 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(Text, nullable=False)
-    ticker = Column(Text, nullable=False, unique=True, index=True)
+    name = Column(Text, nullable=False, index=True)
+    ticker = Column(Text, nullable=False, index=True)  # NOT unique: same ticker may be reused
     website = Column(Text, nullable=False, index=True)
     ceo = Column(Text, nullable=True)
     telegram = Column(Text, nullable=True)

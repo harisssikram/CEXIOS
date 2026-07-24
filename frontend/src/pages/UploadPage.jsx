@@ -51,7 +51,17 @@ export default function UploadPage() {
     try {
       const data = await projectService.upload(name.trim(), file, setProgress);
       setResult(data);
-      toast.success(`Uploaded! ${data.added} project(s) added.`);
+      if (data.added > 0) {
+        toast.success(`Uploaded! ${data.added} project(s) added.`);
+      }
+      if (data.duplicates > 0) {
+        toast.error(
+          `${data.duplicates} row(s) were rejected as duplicates (matched by name or website).`
+        );
+      }
+      if (data.invalid > 0) {
+        toast.error(`${data.invalid} row(s) were invalid and skipped.`);
+      }
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
     } catch (err) {
@@ -68,8 +78,9 @@ export default function UploadPage() {
         <p className="text-muted text-sm mb-8">
           Upload a spreadsheet with <span className="font-mono text-primary">Project Name</span>,{" "}
           <span className="font-mono text-primary">Ticker</span>, and{" "}
-          <span className="font-mono text-primary">Website</span> columns. Duplicates (matched by
-          ticker or website) are skipped automatically.
+          <span className="font-mono text-primary">Website</span> columns. Rows are rejected as
+          duplicates if the <strong>project name</strong> or <strong>website</strong> already
+          exists — the ticker is allowed to repeat.
         </p>
 
         <Card className="p-7">
@@ -152,17 +163,60 @@ export default function UploadPage() {
                   <CheckCircleIcon className="w-5 h-5" />
                   Upload complete
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-3 gap-4 text-center mb-2">
                   <SummaryStat label="Added" value={result.added} tone="success" />
                   <SummaryStat label="Duplicates" value={result.duplicates} tone="warning" />
                   <SummaryStat label="Invalid rows" value={result.invalid} tone="danger" />
                 </div>
+
+                {result.duplicate_rows?.length > 0 && (
+                  <IssueList
+                    title="Duplicate rows"
+                    tone="warning"
+                    items={result.duplicate_rows}
+                  />
+                )}
+
+                {result.invalid_rows?.length > 0 && (
+                  <IssueList
+                    title="Invalid rows"
+                    tone="danger"
+                    items={result.invalid_rows}
+                  />
+                )}
               </Card>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </DashboardLayout>
+  );
+}
+
+function IssueList({ title, tone, items }) {
+  const toneClasses = {
+    warning: "text-warning bg-warning/10 border-warning/20",
+    danger: "text-danger bg-danger/10 border-danger/20",
+  };
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted mb-2">{title}</p>
+      <ul className="space-y-1.5">
+        {items.map((item, i) => (
+          <li
+            key={i}
+            className={cn("text-xs rounded-lg border px-3 py-2 flex items-start gap-2", toneClasses[tone])}
+          >
+            <ExclamationTriangleIcon className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>
+              <strong>Row {item.row}</strong>
+              {item.name ? ` — ${item.name}` : ""}
+              {item.ticker ? ` (${item.ticker})` : ""}: {item.reason}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

@@ -50,7 +50,7 @@ export default function SearchPage() {
       <div className="max-w-3xl mx-auto mb-8">
         <h2 className="text-2xl font-bold text-primary mb-1.5">Find a project</h2>
         <p className="text-muted text-sm">
-          Type the full ticker or project name and press Enter to check if it already exists.
+          Type the exact ticker or project name and press Enter to check if it already exists.
         </p>
       </div>
 
@@ -78,8 +78,8 @@ export default function SearchPage() {
         {!loading && searched && results && results.length === 0 && (
           <EmptyState
             icon={MagnifyingGlassIcon}
-            title={`No matches for "${submittedQuery}"`}
-            description="This project doesn't exist in the registry yet. You can add it from the Upload Excel page."
+            title={`"${submittedQuery}" does not exist`}
+            description="Not found / not locked in the registry yet. You can add it from the Upload Excel page."
           />
         )}
 
@@ -93,6 +93,9 @@ export default function SearchPage() {
 
         {!loading && results && results.length > 0 && (
           <>
+            <div className="px-5 py-3 bg-success/10 border-b border-success/20 text-success text-sm font-medium">
+              "{submittedQuery}" exists — already locked in the registry.
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-primary-50/60">

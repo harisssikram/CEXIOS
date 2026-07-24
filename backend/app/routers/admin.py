@@ -56,9 +56,13 @@ def add_project(
     db: Session = Depends(get_db),
     admin: str = Depends(get_current_admin),
 ):
-    existing = crud.find_duplicate(db, ticker=project.ticker.upper(), website=project.website)
+    # Duplicates are matched by NAME or WEBSITE -- the same ticker is allowed to repeat.
+    existing = crud.find_duplicate(db, name=project.name, website=project.website)
     if existing:
-        raise HTTPException(status_code=409, detail="A project with this ticker or website already exists.")
+        raise HTTPException(
+            status_code=409,
+            detail=f'A project with this name or website already exists: "{existing.name}" ({existing.ticker}).',
+        )
     project.ticker = project.ticker.upper()
     return crud.create_project(db, project)
 
@@ -70,6 +74,19 @@ def edit_project(
     db: Session = Depends(get_db),
     admin: str = Depends(get_current_admin),
 ):
+    # If name/website are being changed, make sure they don't collide with another project.
+    if updates.name or updates.website:
+        existing = crud.find_duplicate(
+            db, name=updates.name, website=updates.website, exclude_id=project_id
+        )
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f'A project with this name or website already exists: "{existing.name}" ({existing.ticker}).',
+            )
+    if updates.ticker:
+        updates.ticker = updates.ticker.upper()
+
     updated = crud.update_project(db, project_id, updates)
     if not updated:
         raise HTTPException(status_code=404, detail="Project not found")
