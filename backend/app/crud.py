@@ -49,7 +49,7 @@ def create_project(db: Session, project: schemas.ProjectCreate) -> models.Projec
     return db_proj
 
 
-def list_projects(db: Session, skip: int = 0, limit: int = 500):
+def list_projects(db: Session, skip: int = 0, limit: int = 100000):
     return (
         db.query(models.Project)
         .order_by(models.Project.date_added.desc())

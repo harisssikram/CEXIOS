@@ -46,8 +46,14 @@ def upload_history(db: Session = Depends(get_db), admin: str = Depends(get_curre
 
 
 @router.get("/projects", response_model=List[schemas.ProjectResponse])
-def list_all_projects(db: Session = Depends(get_db), admin: str = Depends(get_current_admin)):
-    return crud.list_projects(db)
+def list_all_projects(
+    skip: int = 0,
+    limit: int = 100000,
+    db: Session = Depends(get_db),
+    admin: str = Depends(get_current_admin),
+):
+    """Returns the full registry by default (no silent 500-row cap)."""
+    return crud.list_projects(db, skip=skip, limit=limit)
 
 
 @router.post("/projects", response_model=schemas.ProjectResponse)

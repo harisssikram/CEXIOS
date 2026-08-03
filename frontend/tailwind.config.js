@@ -56,6 +56,9 @@ export default {
           "0%": { backgroundPosition: "-400px 0" },
           "100%": { backgroundPosition: "400px 0" },
         },
+        shine: {
+          "100%": { transform: "translateX(100%)" },
+        },
       },
       animation: {
         shimmer: "shimmer 1.6s ease-in-out infinite",
