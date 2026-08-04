@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Squares2X2Icon,
@@ -60,7 +60,11 @@ function SidebarContent({ onNavigate }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 py-6 flex items-center gap-2.5">
+      <Link
+        to="/"
+        onClick={onNavigate}
+        className="px-5 py-6 flex items-center gap-2.5 hover:opacity-85 transition-opacity focus-ring rounded-xl"
+      >
         <div className="w-9 h-9 rounded-lg bg-accent-gradient flex items-center justify-center font-bold text-white text-sm">
           CX
         </div>
@@ -68,7 +72,7 @@ function SidebarContent({ onNavigate }) {
           <p className="text-white font-semibold leading-tight">CEXIOS</p>
           <p className="text-primary-100/60 text-xs leading-tight">Project Registry</p>
         </div>
-      </div>
+      </Link>
 
       <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
         <p className="px-3.5 pt-3 pb-2 text-xs font-semibold uppercase tracking-wider text-primary-100/40">

@@ -111,7 +111,7 @@ def parse_and_import(file_bytes: bytes, filename: str, uploader: str, db: Sessio
                 "row": excel_row_num,
                 "name": name,
                 "ticker": ticker,
-                "reason": f"Already exists in the database as \"{existing.name}\" ({existing.ticker}).",
+                "reason": f"Already exists in the database as {crud.format_duplicate_detail(existing)}.",
             })
             seen_names.add(name_norm)
             if website_norm:

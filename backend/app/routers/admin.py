@@ -67,7 +67,7 @@ def add_project(
     if existing:
         raise HTTPException(
             status_code=409,
-            detail=f'A project with this name or website already exists: "{existing.name}" ({existing.ticker}).',
+            detail=f"A project with this name or website already exists: {crud.format_duplicate_detail(existing)}.",
         )
     project.ticker = project.ticker.upper()
     return crud.create_project(db, project)
@@ -88,7 +88,7 @@ def edit_project(
         if existing:
             raise HTTPException(
                 status_code=409,
-                detail=f'A project with this name or website already exists: "{existing.name}" ({existing.ticker}).',
+                detail=f"A project with this name or website already exists: {crud.format_duplicate_detail(existing)}.",
             )
     if updates.ticker:
         updates.ticker = updates.ticker.upper()

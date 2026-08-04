@@ -20,6 +20,13 @@ def get_project_by_ticker(db: Session, ticker: str):
     return db.query(models.Project).filter(models.Project.ticker == ticker).first()
 
 
+def format_duplicate_detail(existing) -> str:
+    """Human-readable description of an existing project, including who added it and when."""
+    when = existing.date_added.strftime("%b %d, %Y at %H:%M UTC") if existing.date_added else "an unknown date"
+    who = existing.added_by or "someone"
+    return f'"{existing.name}" ({existing.ticker}), added by {who} on {when}'
+
+
 def find_duplicate(db: Session, name: str = None, website: str = None, exclude_id: int = None):
     """
     A project counts as a duplicate if its NAME or WEBSITE matches an existing row.
