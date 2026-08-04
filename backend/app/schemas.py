@@ -41,10 +41,18 @@ class UploadRowIssue(BaseModel):
     reason: str
 
 
+class UploadRowAdded(BaseModel):
+    row: int
+    name: str
+    ticker: str
+    website: str
+
+
 class UploadResponse(BaseModel):
     added: int
     duplicates: int
     invalid: int
+    added_rows: list[UploadRowAdded] = []
     duplicate_rows: list[UploadRowIssue] = []
     invalid_rows: list[UploadRowIssue] = []
 

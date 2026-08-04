@@ -39,10 +39,11 @@ def read_dataframe(file_bytes: bytes, filename: str) -> pd.DataFrame:
 
 def parse_and_import(file_bytes: bytes, filename: str, uploader: str, db: Session):
     """
-    Returns (added, duplicates, invalid, duplicate_rows, invalid_rows).
-    duplicate_rows / invalid_rows are lists of dicts describing exactly which
-    spreadsheet rows were rejected and why, so the caller can surface real errors
-    instead of a bare count.
+    Returns (added, duplicates, invalid, added_rows, duplicate_rows, invalid_rows).
+    added_rows / duplicate_rows / invalid_rows are lists of dicts describing exactly
+    which spreadsheet rows landed where, so the caller can surface real detail
+    instead of a bare count. Nothing extra is persisted -- added_rows just mirrors
+    projects that were already written to the DB via crud.create_project above.
 
     A row is a duplicate if its PROJECT NAME or WEBSITE matches an existing project
     (in the database, or already seen earlier in this same file). Ticker is NOT used
@@ -59,6 +60,7 @@ def parse_and_import(file_bytes: bytes, filename: str, uploader: str, db: Sessio
         )
 
     added, duplicates, invalid = 0, 0, 0
+    added_rows = []
     duplicate_rows = []
     invalid_rows = []
 
@@ -133,8 +135,14 @@ def parse_and_import(file_bytes: bytes, filename: str, uploader: str, db: Sessio
         )
         crud.create_project(db, new_project)
         added += 1
+        added_rows.append({
+            "row": excel_row_num,
+            "name": name,
+            "ticker": ticker,
+            "website": website_raw,
+        })
         seen_names.add(name_norm)
         if website_norm:
             seen_websites.add(website_norm)
 
-    return added, duplicates, invalid, duplicate_rows, invalid_rows
+    return added, duplicates, invalid, added_rows, duplicate_rows, invalid_rows
