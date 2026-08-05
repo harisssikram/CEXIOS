@@ -59,9 +59,14 @@ export default {
         shine: {
           "100%": { transform: "translateX(100%)" },
         },
+        wobble: {
+          "0%, 100%": { transform: "rotate(-4deg) scale(1)" },
+          "50%": { transform: "rotate(4deg) scale(1.06)" },
+        },
       },
       animation: {
         shimmer: "shimmer 1.6s ease-in-out infinite",
+        wobble: "wobble 1.4s ease-in-out infinite",
       },
     },
   },

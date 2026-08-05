@@ -47,3 +47,29 @@ async def upload_excel(
         "duplicate_rows": duplicate_rows,
         "invalid_rows": invalid_rows,
     }
+
+
+@router.post("/instant-add", response_model=schemas.UploadResponse)
+def instant_add(payload: schemas.ManualBulkAddRequest, db: Session = Depends(get_db)):
+    """
+    Public 'Instant Add' endpoint: up to utils.MAX_MANUAL_ROWS projects typed directly
+    into the small in-app sheet, instead of via an Excel/CSV file. Runs through the
+    exact same validation/duplicate rules as /upload and returns the same shape.
+    """
+    if not payload.uploader or not payload.uploader.strip():
+        raise HTTPException(status_code=400, detail="Your name is required.")
+
+    rows = [r.model_dump() for r in payload.rows]
+    added, duplicates, invalid, added_rows, duplicate_rows, invalid_rows = utils.process_manual_rows(
+        rows, payload.uploader.strip(), db
+    )
+    crud.record_upload(db, payload.uploader.strip(), "Instant Add", added, duplicates, invalid)
+
+    return {
+        "added": added,
+        "duplicates": duplicates,
+        "invalid": invalid,
+        "added_rows": added_rows,
+        "duplicate_rows": duplicate_rows,
+        "invalid_rows": invalid_rows,
+    }

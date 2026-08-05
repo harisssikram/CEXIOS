@@ -6,14 +6,23 @@ import {
   DocumentTextIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  BoltIcon,
+  PlusIcon,
+  TrashIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import DashboardLayout from "../layouts/DashboardLayout";
 import Card from "../components/ui/Card";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
+import Modal from "../components/ui/Modal";
 import ProgressBar from "../components/ui/ProgressBar";
 import projectService from "../services/projectService";
 import { cn } from "../utils/cn";
+
+const MAX_MANUAL_ROWS = 20;
+const emptyRow = () => ({ name: "", ticker: "", website: "" });
+const COLUMNS = ["name", "ticker", "website"];
 
 export default function UploadPage() {
   const [name, setName] = useState("");
@@ -23,6 +32,10 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const inputRef = useRef(null);
+
+  // Fully independent of the file-upload state above -- opening/using Instant Add
+  // never touches `file`/`result`/`progress`, and vice versa.
+  const [instantOpen, setInstantOpen] = useState(false);
 
   function onDrop(e) {
     e.preventDefault();
@@ -74,14 +87,20 @@ export default function UploadPage() {
   return (
     <DashboardLayout title="Upload Excel">
       <div className="max-w-2xl mx-auto">
-        <h2 className="text-2xl font-bold text-primary mb-1.5">Add projects to the registry</h2>
-        <p className="text-muted text-sm mb-8">
+        <div className="flex items-start justify-between gap-4 mb-1.5">
+          <h2 className="text-2xl font-bold text-primary">Add projects to the registry</h2>
+        </div>
+        <p className="text-muted text-sm mb-5">
           Upload a spreadsheet with <span className="font-mono text-primary">Project Name</span>,{" "}
           <span className="font-mono text-primary">Ticker</span>, and{" "}
           <span className="font-mono text-primary">Website</span> columns. Rows are rejected as
           duplicates if the <strong>project name</strong> or <strong>website</strong> already
           exists — the ticker is allowed to repeat.
         </p>
+
+        <div className="mb-8">
+          <InstantAddButton onClick={() => setInstantOpen(true)} />
+        </div>
 
         <Card className="p-7">
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -152,6 +171,8 @@ export default function UploadPage() {
         <AnimatePresence>
           {result && <UploadResult result={result} />}
         </AnimatePresence>
+
+        <InstantAddModal open={instantOpen} onClose={() => setInstantOpen(false)} />
       </div>
     </DashboardLayout>
   );
@@ -163,7 +184,7 @@ const TABS = [
   { key: "invalid", label: "Invalid", tone: "danger" },
 ];
 
-function UploadResult({ result }) {
+function UploadResult({ result, compact = false }) {
   const counts = {
     added: result.added,
     duplicates: result.duplicates,
@@ -189,47 +210,57 @@ function UploadResult({ result }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3 }}
-      className="mt-6"
+      className={compact ? "" : "mt-6"}
     >
-      <Card className="p-7">
-        <div className="flex items-center gap-2 text-success font-semibold mb-6">
-          <CheckCircleIcon className="w-5 h-5" />
-          Upload complete
-          <span className="ml-auto text-xs font-normal text-muted normal-case tracking-normal">
-            Shown once — not stored anywhere
-          </span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 text-center mb-6">
-          <SummaryStat label="Added" value={result.added} tone="success" />
-          <SummaryStat label="Duplicates" value={result.duplicates} tone="warning" />
-          <SummaryStat label="Invalid rows" value={result.invalid} tone="danger" />
-        </div>
-
-        <GlassToggle tabs={TABS} active={tab} onChange={setTab} counts={counts} />
-
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18 }}
-            className="mt-4 h-80 overflow-y-auto pr-1"
-          >
-            {listByTab[tab].length > 0 ? (
-              <ResultList tab={tab} items={listByTab[tab]} />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-sm text-muted text-center">
-                  No {tab} rows in this upload.
-                </p>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </Card>
+      {compact ? (
+        <ResultBody result={result} counts={counts} listByTab={listByTab} tab={tab} setTab={setTab} />
+      ) : (
+        <Card className="p-7">
+          <ResultBody result={result} counts={counts} listByTab={listByTab} tab={tab} setTab={setTab} />
+        </Card>
+      )}
     </motion.div>
+  );
+}
+
+function ResultBody({ result, counts, listByTab, tab, setTab }) {
+  return (
+    <>
+      <div className="flex items-center gap-2 text-success font-semibold mb-6">
+        <CheckCircleIcon className="w-5 h-5" />
+        Upload complete
+        <span className="ml-auto text-xs font-normal text-muted normal-case tracking-normal">
+          Shown once — not stored anywhere
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 text-center mb-6">
+        <SummaryStat label="Added" value={result.added} tone="success" />
+        <SummaryStat label="Duplicates" value={result.duplicates} tone="warning" />
+        <SummaryStat label="Invalid rows" value={result.invalid} tone="danger" />
+      </div>
+
+      <GlassToggle tabs={TABS} active={tab} onChange={setTab} counts={counts} />
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18 }}
+          className="mt-4 h-80 overflow-y-auto pr-1"
+        >
+          {listByTab[tab].length > 0 ? (
+            <ResultList tab={tab} items={listByTab[tab]} />
+          ) : (
+            <div className="h-full flex items-center justify-center">
+              <p className="text-sm text-muted text-center">No {tab} rows in this upload.</p>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -317,5 +348,240 @@ function SummaryStat({ label, value, tone }) {
         {label}
       </p>
     </div>
+  );
+}
+
+function InstantAddButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative inline-flex items-center gap-2.5 pl-4 pr-5 py-3 rounded-2xl border border-accent-200 bg-gradient-to-br from-accent-50 to-white hover:from-accent-100 hover:shadow-[0_6px_20px_-6px_rgba(30,99,255,0.4)] transition-all duration-200 focus-ring"
+    >
+      <span className="w-8 h-8 rounded-xl bg-accent-gradient flex items-center justify-center shrink-0">
+        <BoltIcon className="w-4 h-4 text-white" />
+      </span>
+      <span className="text-left">
+        <span className="block text-sm font-semibold text-primary">Instant Add</span>
+        <span className="block text-[11px] text-muted">Type up to 20 projects, no file needed</span>
+      </span>
+      <span
+        aria-hidden
+        className="absolute -top-2.5 -right-2.5 inline-block px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-bold tracking-wide shadow-md animate-wobble select-none"
+      >
+        NEW
+      </span>
+    </button>
+  );
+}
+
+function InstantAddModal({ open, onClose }) {
+  const [rows, setRows] = useState([emptyRow(), emptyRow(), emptyRow()]);
+  const [uploader, setUploader] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  function reset() {
+    setRows([emptyRow(), emptyRow(), emptyRow()]);
+    setUploader("");
+    setResult(null);
+  }
+
+  function handleClose() {
+    onClose();
+    // Slight delay so the modal doesn't visibly reset mid-close animation.
+    setTimeout(reset, 200);
+  }
+
+  function updateRow(idx, field, value) {
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
+  }
+
+  function addRow() {
+    if (rows.length >= MAX_MANUAL_ROWS) return;
+    setRows((prev) => [...prev, emptyRow()]);
+  }
+
+  function removeRow(idx) {
+    setRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
+  }
+
+  function handlePaste(e, rowIdx, colKey) {
+    const text = e.clipboardData.getData("text");
+    // Only intercept multi-cell pastes (copied from Excel/Sheets/CSV). A single
+    // value pastes normally so it doesn't fight with the browser's own behavior.
+    if (!text.includes("\t") && !text.includes("\n")) return;
+    e.preventDefault();
+
+    const grid = text
+      .replace(/\r/g, "")
+      .split("\n")
+      .filter((line, i, arr) => !(i === arr.length - 1 && line === "")) // drop trailing blank line
+      .map((line) => line.split("\t"));
+
+    const startCol = COLUMNS.indexOf(colKey);
+
+    setRows((prev) => {
+      const next = [...prev.map((r) => ({ ...r }))];
+      let pastedRows = 0;
+      let truncated = false;
+
+      grid.forEach((cells, r) => {
+        const targetIdx = rowIdx + r;
+        if (targetIdx >= MAX_MANUAL_ROWS) {
+          truncated = true;
+          return;
+        }
+        while (next.length <= targetIdx) next.push(emptyRow());
+        cells.forEach((val, c) => {
+          const col = COLUMNS[startCol + c];
+          if (col) next[targetIdx][col] = val.trim();
+        });
+        pastedRows++;
+      });
+
+      if (truncated) {
+        toast.error(`Only pasted up to row ${MAX_MANUAL_ROWS} — that's the max per batch.`);
+      } else if (pastedRows > 1 || grid[0]?.length > 1) {
+        toast.success(`Pasted ${pastedRows} row(s).`);
+      }
+
+      return next;
+    });
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!uploader.trim()) {
+      toast.error("Enter your name so these can be credited to you.");
+      return;
+    }
+    const filled = rows.filter((r) => r.name.trim() || r.ticker.trim() || r.website.trim());
+    if (filled.length === 0) {
+      toast.error("Fill in at least one project row.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const data = await projectService.instantAdd(uploader.trim(), filled);
+      setResult(data);
+      if (data.added > 0) toast.success(`${data.added} project(s) added.`);
+      if (data.duplicates > 0) toast.error(`${data.duplicates} row(s) were duplicates.`);
+      if (data.invalid > 0) toast.error(`${data.invalid} row(s) were invalid.`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Instant Add failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={handleClose} maxWidth="max-w-3xl">
+      <div className="flex items-center gap-2 mb-1">
+        <BoltIcon className="w-5 h-5 text-accent" />
+        <h3 className="text-lg font-semibold text-primary">Instant Add</h3>
+        <span className="text-[10px] font-bold tracking-wide text-white bg-danger rounded-full px-2 py-0.5">
+          NEW
+        </span>
+      </div>
+      <p className="text-sm text-muted mb-5">
+        Type up to {MAX_MANUAL_ROWS} projects directly — same duplicate checks as the Excel
+        upload, without needing a file.
+      </p>
+
+      {result ? (
+        <>
+          <UploadResult result={result} compact />
+          <div className="flex gap-3 mt-5">
+            <Button variant="secondary" className="flex-1" onClick={reset}>
+              <SparklesIcon className="w-4 h-4" />
+              Add more
+            </Button>
+            <Button className="flex-1" onClick={handleClose}>
+              Done
+            </Button>
+          </div>
+        </>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Input
+            label="Your name"
+            value={uploader}
+            onChange={(e) => setUploader(e.target.value)}
+            placeholder="e.g. Sarah Malik"
+          />
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm font-medium text-primary">Projects</span>
+              <span className="text-xs text-muted">{rows.length} / {MAX_MANUAL_ROWS}</span>
+            </div>
+            <p className="text-xs text-muted mb-2">
+              Tip: copy cells from Excel or Google Sheets and paste into any box — it'll fill
+              across rows and columns automatically.
+            </p>
+            <div className="border border-line rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-[1fr_1fr_1.2fr_auto] gap-px bg-line text-[11px] font-semibold uppercase tracking-wide text-muted">
+                <div className="bg-surface px-3 py-2">Project Name</div>
+                <div className="bg-surface px-3 py-2">Ticker</div>
+                <div className="bg-surface px-3 py-2">Website</div>
+                <div className="bg-surface px-2 py-2 w-9" />
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                {rows.map((row, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_1fr_1.2fr_auto] gap-px bg-line">
+                    <input
+                      value={row.name}
+                      onChange={(e) => updateRow(idx, "name", e.target.value)}
+                      onPaste={(e) => handlePaste(e, idx, "name")}
+                      placeholder="Solana"
+                      className="bg-white px-3 py-2 text-sm text-primary outline-none focus:bg-accent-50"
+                    />
+                    <input
+                      value={row.ticker}
+                      onChange={(e) => updateRow(idx, "ticker", e.target.value)}
+                      onPaste={(e) => handlePaste(e, idx, "ticker")}
+                      placeholder="SOL"
+                      className="bg-white px-3 py-2 text-sm text-primary outline-none focus:bg-accent-50"
+                    />
+                    <input
+                      value={row.website}
+                      onChange={(e) => updateRow(idx, "website", e.target.value)}
+                      onPaste={(e) => handlePaste(e, idx, "website")}
+                      placeholder="solana.com"
+                      className="bg-white px-3 py-2 text-sm text-primary outline-none focus:bg-accent-50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeRow(idx)}
+                      disabled={rows.length <= 1}
+                      className="bg-white px-2 flex items-center justify-center text-muted hover:text-danger disabled:opacity-30 disabled:hover:text-muted transition-colors"
+                      aria-label="Remove row"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={addRow}
+              disabled={rows.length >= MAX_MANUAL_ROWS}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add row
+            </button>
+          </div>
+
+          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+            {submitting ? "Adding..." : "Add projects"}
+          </Button>
+        </form>
+      )}
+    </Modal>
   );
 }

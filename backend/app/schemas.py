@@ -57,6 +57,20 @@ class UploadResponse(BaseModel):
     invalid_rows: list[UploadRowIssue] = []
 
 
+class ManualProjectRow(BaseModel):
+    name: str = ""
+    ticker: str = ""
+    website: str = ""
+    ceo: Optional[str] = None
+    telegram: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ManualBulkAddRequest(BaseModel):
+    uploader: str
+    rows: list[ManualProjectRow]
+
+
 class UploadRecord(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

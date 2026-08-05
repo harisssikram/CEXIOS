@@ -29,6 +29,12 @@ const projectService = {
       })
       .then((res) => res.data);
   },
+
+  instantAdd(uploaderName, rows) {
+    return api
+      .post("/api/v1/instant-add", { uploader: uploaderName, rows })
+      .then((res) => res.data);
+  },
 };
 
 export default projectService;
