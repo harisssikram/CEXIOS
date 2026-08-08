@@ -1,15 +1,28 @@
-# Backend
+# Python virtual environments
+.venv/
+venv/
+backend/.venv/
 backend/venv/
-backend/__pycache__/
-backend/app/__pycache__/
-backend/app/routers/__pycache__/
-backend/*.db
-backend/.env
 
-# Frontend
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
 frontend/node_modules/
+dist/
 frontend/dist/
-frontend/.env
+
+# IDE
+.vscode/
 
 # OS
 .DS_Store
+Thumbs.db
