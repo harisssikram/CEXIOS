@@ -16,11 +16,9 @@ import ProgressBar from "../components/ui/ProgressBar";
 import ProjectRowsGrid, { MAX_MANUAL_ROWS, emptyRow } from "../components/projects/ProjectRowsGrid";
 import UploadResultPanel from "../components/projects/UploadResultPanel";
 import projectService from "../services/projectService";
-import { usePin } from "../hooks/usePin";
 import { cn } from "../utils/cn";
 
 export default function UploadPage() {
-  const { requirePin } = usePin();
   const [name, setName] = useState("");
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -53,7 +51,7 @@ export default function UploadPage() {
       toast.error("Choose an .xlsx, .xls, or .csv file to upload.");
       return;
     }
-    requirePin(doUpload);
+    doUpload();
   }
 
   async function doUpload() {
@@ -92,7 +90,7 @@ export default function UploadPage() {
           <span className="font-mono text-primary">Ticker</span>, and{" "}
           <span className="font-mono text-primary">Website</span> columns. Rows are rejected as
           duplicates if the <strong>project name</strong> or <strong>website</strong> already
-          exists — the ticker is allowed to repeat. Adding or uploading requires a PIN.
+          exists — the ticker is allowed to repeat.
         </p>
 
         <div className="mb-8">
@@ -200,7 +198,6 @@ function InstantAddButton({ onClick }) {
 }
 
 function InstantAddModal({ open, onClose }) {
-  const { requirePin } = usePin();
   const [rows, setRows] = useState([emptyRow(), emptyRow(), emptyRow()]);
   const [uploader, setUploader] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -229,7 +226,7 @@ function InstantAddModal({ open, onClose }) {
       toast.error("Fill in at least one project row.");
       return;
     }
-    requirePin(() => doSubmit(filled));
+    doSubmit(filled);
   }
 
   async function doSubmit(filled) {
@@ -258,7 +255,7 @@ function InstantAddModal({ open, onClose }) {
       </div>
       <p className="text-sm text-muted mb-5">
         Type up to {MAX_MANUAL_ROWS} projects directly — same duplicate checks as the Excel
-        upload, without needing a file. Requires a PIN.
+        upload, without needing a file.
       </p>
 
       {result ? (

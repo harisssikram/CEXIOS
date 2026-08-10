@@ -6,7 +6,7 @@ export default function Footer() {
         <p className="text-right leading-relaxed">
           Crypto Project Registry - v2.0
           <br />
-          Built by Nirmal Qayyum Baig
+          Built by HARIS IKRAM
         </p>
       </div>
     </footer>
