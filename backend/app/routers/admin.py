@@ -7,8 +7,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from .. import crud, schemas
-from ..auth import create_access_token, get_current_admin
+from .. import crud, schemas, utils
+from ..auth import create_access_token, create_pin_token, get_current_admin, verify_pin_token, PIN_EXPIRE_MINUTES
 from ..config import settings
 from ..database import get_db
 
@@ -29,6 +29,18 @@ def admin_login(form_data: OAuth2PasswordRequestForm = Depends()):
         "access_token": token,
         "token_type": "bearer",
     }
+
+
+@router.post("/verify-pin", response_model=schemas.PinToken)
+def verify_pin(payload: schemas.PinVerifyRequest):
+    """
+    Standalone PIN gate for any data-changing action (add/edit/delete/upload).
+    Not tied to the admin login -- anyone with the shared PIN can unlock changes
+    for PIN_EXPIRE_MINUTES. Viewing data never requires this.
+    """
+    if not payload.pin or payload.pin != settings.ADMIN_PIN:
+        raise HTTPException(status_code=401, detail="Incorrect PIN.")
+    return {"pin_token": create_pin_token(), "expires_in": PIN_EXPIRE_MINUTES * 60}
 
 
 @router.get("/dashboard", response_model=schemas.DashboardStats)
@@ -61,6 +73,7 @@ def add_project(
     project: schemas.ProjectCreate,
     db: Session = Depends(get_db),
     admin: str = Depends(get_current_admin),
+    _pin: None = Depends(verify_pin_token),
 ):
     # Duplicates are matched by NAME or WEBSITE -- the same ticker is allowed to repeat.
     existing = crud.find_duplicate(db, name=project.name, website=project.website)
@@ -79,6 +92,7 @@ def edit_project(
     updates: schemas.ProjectUpdate,
     db: Session = Depends(get_db),
     admin: str = Depends(get_current_admin),
+    _pin: None = Depends(verify_pin_token),
 ):
     # If name/website are being changed, make sure they don't collide with another project.
     if updates.name or updates.website:
@@ -104,10 +118,43 @@ def remove_project(
     project_id: int,
     db: Session = Depends(get_db),
     admin: str = Depends(get_current_admin),
+    _pin: None = Depends(verify_pin_token),
 ):
     if not crud.delete_project(db, project_id):
         raise HTTPException(status_code=404, detail="Project not found")
     return None
+
+
+@router.post("/projects/force-add", response_model=schemas.UploadResponse)
+def force_add_projects(
+    payload: schemas.ManualBulkAddRequest,
+    db: Session = Depends(get_db),
+    admin: str = Depends(get_current_admin),
+    _pin: None = Depends(verify_pin_token),
+):
+    """
+    Admin Add: inserts up to utils.MAX_MANUAL_ROWS rows exactly as given, with NO
+    duplicate checking (name/website collisions with existing projects are allowed).
+    Rows still need a Project Name and Ticker to be considered valid. Requires both
+    an admin login and an unlocked PIN.
+    """
+    if not payload.uploader or not payload.uploader.strip():
+        raise HTTPException(status_code=400, detail="Your name is required.")
+
+    rows = [r.model_dump() for r in payload.rows]
+    added, duplicates, invalid, added_rows, duplicate_rows, invalid_rows = utils.process_manual_rows(
+        rows, payload.uploader.strip(), db, skip_duplicate_check=True
+    )
+    crud.record_upload(db, payload.uploader.strip(), "Admin Add (no duplicate check)", added, duplicates, invalid)
+
+    return {
+        "added": added,
+        "duplicates": duplicates,
+        "invalid": invalid,
+        "added_rows": added_rows,
+        "duplicate_rows": duplicate_rows,
+        "invalid_rows": invalid_rows,
+    }
 
 
 @router.get("/projects/export")

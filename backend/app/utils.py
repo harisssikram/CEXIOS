@@ -39,16 +39,24 @@ def read_dataframe(file_bytes: bytes, filename: str) -> pd.DataFrame:
             raise HTTPException(status_code=400, detail="Could not parse file. Please upload a valid .xlsx, .xls, or .csv file.")
 
 
-def _import_row(row_num, name, ticker, website_raw, optional_fields, uploader, db, seen_names, seen_websites):
+def _import_row(
+    row_num, name, ticker, website_raw, optional_fields, uploader, db, seen_names, seen_websites,
+    skip_duplicate_check=False,
+):
     """
-    Shared core used by both the Excel/CSV upload and the manual Instant Add flow, so
-    the two entry points can never drift out of sync on validation or duplicate rules.
+    Shared core used by the Excel/CSV upload, the manual Instant Add flow, and the
+    Admin Add (bypass-duplicates) flow, so all three can never drift out of sync on
+    validation rules.
 
     Returns a tuple (bucket, entry) where bucket is one of "invalid", "duplicate", "added".
 
     A row is a duplicate if its PROJECT NAME or WEBSITE matches an existing project
     (in the database, or already seen earlier in this same batch). Ticker is NOT used
     for duplicate detection -- the same ticker can be reused across projects.
+
+    When skip_duplicate_check is True (Admin Add), duplicate matching is skipped
+    entirely and the row is inserted exactly as given -- only the basic name/ticker
+    presence check still applies.
     """
     name = (name or "").strip()
     ticker = (ticker or "").strip().upper()
@@ -65,27 +73,28 @@ def _import_row(row_num, name, ticker, website_raw, optional_fields, uploader, d
     name_norm = name.lower()
     website_norm = normalize_website(website_raw)
 
-    # Duplicate within this same batch
-    if name_norm in seen_names or (website_norm and website_norm in seen_websites):
-        return "duplicate", {
-            "row": row_num,
-            "name": name,
-            "ticker": ticker,
-            "reason": "Duplicate row within this batch (same name or website).",
-        }
+    if not skip_duplicate_check:
+        # Duplicate within this same batch
+        if name_norm in seen_names or (website_norm and website_norm in seen_websites):
+            return "duplicate", {
+                "row": row_num,
+                "name": name,
+                "ticker": ticker,
+                "reason": "Duplicate row within this batch (same name or website).",
+            }
 
-    # Duplicate already in the database
-    existing = crud.find_duplicate(db, name=name, website=website_raw)
-    if existing:
-        seen_names.add(name_norm)
-        if website_norm:
-            seen_websites.add(website_norm)
-        return "duplicate", {
-            "row": row_num,
-            "name": name,
-            "ticker": ticker,
-            "reason": f"Already exists in the database as {crud.format_duplicate_detail(existing)}.",
-        }
+        # Duplicate already in the database
+        existing = crud.find_duplicate(db, name=name, website=website_raw)
+        if existing:
+            seen_names.add(name_norm)
+            if website_norm:
+                seen_websites.add(website_norm)
+            return "duplicate", {
+                "row": row_num,
+                "name": name,
+                "ticker": ticker,
+                "reason": f"Already exists in the database as {crud.format_duplicate_detail(existing)}.",
+            }
 
     new_project = schemas.ProjectCreate(
         name=name,
@@ -173,12 +182,13 @@ def parse_and_import(file_bytes: bytes, filename: str, uploader: str, db: Sessio
     return added, duplicates, invalid, added_rows, duplicate_rows, invalid_rows
 
 
-def process_manual_rows(rows: list, uploader: str, db: Session):
+def process_manual_rows(rows: list, uploader: str, db: Session, skip_duplicate_check: bool = False):
     """
-    Powers the "Instant Add" feature: up to MAX_MANUAL_ROWS projects typed directly
-    into a small in-app sheet, validated and deduplicated with the exact same rules
-    as the Excel/CSV upload (see _import_row), and returned in the same shape so the
-    frontend can reuse one results component for both flows.
+    Powers "Instant Add" (skip_duplicate_check=False) and "Admin Add"
+    (skip_duplicate_check=True): up to MAX_MANUAL_ROWS projects typed directly into a
+    small in-app sheet, validated with the same rules as the Excel/CSV upload (see
+    _import_row), and returned in the same shape so the frontend can reuse one results
+    component for all three flows.
 
     `rows` is a list of dicts with keys: name, ticker, website, and optionally
     ceo, telegram, notes.
@@ -211,6 +221,7 @@ def process_manual_rows(rows: list, uploader: str, db: Session):
             db,
             seen_names,
             seen_websites,
+            skip_duplicate_check=skip_duplicate_check,
         )
         added, duplicates, invalid = _tally(
             bucket, entry, added, duplicates, invalid, added_rows, duplicate_rows, invalid_rows

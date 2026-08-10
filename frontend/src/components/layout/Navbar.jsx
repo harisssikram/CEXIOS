@@ -9,9 +9,12 @@ import {
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../../hooks/useAuth";
+import { usePin } from "../../hooks/usePin";
+import { LockOpenIcon } from "@heroicons/react/24/solid";
 
 export default function Navbar({ title, onOpenMobileMenu }) {
   const { isAuthenticated, username, logout } = useAuth();
+  const { isUnlocked, msRemaining } = usePin();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -45,6 +48,12 @@ export default function Navbar({ title, onOpenMobileMenu }) {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3">
+          {isUnlocked && (
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-success bg-success/10 border border-success/20 rounded-full px-3 py-1.5">
+              <LockOpenIcon className="w-3.5 h-3.5" />
+              Unlocked · {Math.ceil(msRemaining / 1000)}s
+            </span>
+          )}
           <button
             onClick={() => navigate("/search")}
             className="text-muted hover:text-primary hover:bg-primary-50 transition-colors focus-ring rounded-lg p-2"

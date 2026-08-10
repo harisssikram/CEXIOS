@@ -16,6 +16,16 @@ const adminService = {
       .then((res) => res.data);
   },
 
+  verifyPin(pin) {
+    return api.post("/api/v1/admin/verify-pin", { pin }).then((res) => res.data);
+  },
+
+  forceAddProjects(uploader, rows) {
+    return api
+      .post("/api/v1/admin/projects/force-add", { uploader, rows })
+      .then((res) => res.data);
+  },
+
   dashboard() {
     return api.get("/api/v1/admin/dashboard").then((res) => res.data);
   },

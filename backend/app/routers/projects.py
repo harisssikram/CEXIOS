@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas, utils
+from ..auth import verify_pin_token
 from ..database import get_db
 
 router = APIRouter(prefix="/api/v1", tags=["projects"])
@@ -28,8 +29,9 @@ async def upload_excel(
     name: str = Form(..., min_length=1),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    _pin: None = Depends(verify_pin_token),
 ):
-    """Public upload endpoint. Requires the uploader's name and an Excel/CSV file."""
+    """Upload endpoint. Requires the uploader's name, an Excel/CSV file, and an unlocked PIN."""
     if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
         raise HTTPException(status_code=400, detail="Only .xlsx, .xls, or .csv files are supported.")
 
@@ -50,11 +52,16 @@ async def upload_excel(
 
 
 @router.post("/instant-add", response_model=schemas.UploadResponse)
-def instant_add(payload: schemas.ManualBulkAddRequest, db: Session = Depends(get_db)):
+def instant_add(
+    payload: schemas.ManualBulkAddRequest,
+    db: Session = Depends(get_db),
+    _pin: None = Depends(verify_pin_token),
+):
     """
-    Public 'Instant Add' endpoint: up to utils.MAX_MANUAL_ROWS projects typed directly
-    into the small in-app sheet, instead of via an Excel/CSV file. Runs through the
-    exact same validation/duplicate rules as /upload and returns the same shape.
+    'Instant Add': up to utils.MAX_MANUAL_ROWS projects typed directly into the small
+    in-app sheet, instead of via an Excel/CSV file. Runs through the exact same
+    validation/duplicate rules as /upload and returns the same shape. Requires an
+    unlocked PIN, same as any other data-changing action.
     """
     if not payload.uploader or not payload.uploader.strip():
         raise HTTPException(status_code=400, detail="Your name is required.")

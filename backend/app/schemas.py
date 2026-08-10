@@ -57,6 +57,15 @@ class UploadResponse(BaseModel):
     invalid_rows: list[UploadRowIssue] = []
 
 
+class PinVerifyRequest(BaseModel):
+    pin: str
+
+
+class PinToken(BaseModel):
+    pin_token: str
+    expires_in: int  # seconds
+
+
 class ManualProjectRow(BaseModel):
     name: str = ""
     ticker: str = ""

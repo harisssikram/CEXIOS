@@ -7,6 +7,7 @@ import {
   TrashIcon,
   ArrowDownTrayIcon,
   ArrowsUpDownIcon,
+  ShieldExclamationIcon,
 } from "@heroicons/react/24/outline";
 import DashboardLayout from "../layouts/DashboardLayout";
 import Card from "../components/ui/Card";
@@ -16,13 +17,16 @@ import Modal from "../components/ui/Modal";
 import Pagination from "../components/ui/Pagination";
 import EmptyState from "../components/ui/EmptyState";
 import { TableSkeleton } from "../components/ui/Skeleton";
+import AdminAddModal from "../components/projects/AdminAddModal";
 import { usePagination } from "../hooks/usePagination";
+import { usePin } from "../hooks/usePin";
 import adminService from "../services/adminService";
 import { formatDate } from "../utils/formatDate";
 
 const emptyForm = { name: "", ticker: "", website: "", ceo: "", telegram: "", notes: "" };
 
 export default function ProjectManagementPage() {
+  const { requirePin } = usePin();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -35,6 +39,11 @@ export default function ProjectManagementPage() {
   const [saving, setSaving] = useState(false);
 
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Independent of the Add/Edit modal above -- Admin Add bypasses duplicate checks
+  // entirely and has its own state, so it never interferes with normal edits.
+  const [adminAddOpen, setAdminAddOpen] = useState(false);
 
   useEffect(() => {
     loadProjects();
@@ -98,8 +107,12 @@ export default function ProjectManagementPage() {
     setModalOpen(true);
   }
 
-  async function saveProject(e) {
+  function saveProject(e) {
     e.preventDefault();
+    requirePin(doSaveProject);
+  }
+
+  async function doSaveProject() {
     setSaving(true);
     try {
       if (editingId) {
@@ -118,8 +131,13 @@ export default function ProjectManagementPage() {
     }
   }
 
-  async function performDelete() {
+  function confirmAndDelete() {
+    requirePin(doDelete);
+  }
+
+  async function doDelete() {
     if (!confirmDelete) return;
+    setDeleting(true);
     try {
       await adminService.deleteProject(confirmDelete.id);
       toast.success("Project deleted.");
@@ -127,6 +145,8 @@ export default function ProjectManagementPage() {
       loadProjects();
     } catch {
       toast.error("Delete failed.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -157,6 +177,13 @@ export default function ProjectManagementPage() {
         <div className="flex gap-2">
           <Button variant="secondary" icon={ArrowDownTrayIcon} onClick={handleExport}>
             Export
+          </Button>
+          <Button
+            variant="outlineDanger"
+            icon={ShieldExclamationIcon}
+            onClick={() => setAdminAddOpen(true)}
+          >
+            Admin Add
           </Button>
           <Button icon={PlusIcon} onClick={openAdd}>
             Add project
@@ -279,11 +306,17 @@ export default function ProjectManagementPage() {
           <Button variant="secondary" className="flex-1" onClick={() => setConfirmDelete(null)}>
             Cancel
           </Button>
-          <Button variant="danger" className="flex-1" onClick={performDelete}>
-            Delete
+          <Button variant="danger" className="flex-1" onClick={confirmAndDelete} disabled={deleting}>
+            {deleting ? "Deleting..." : "Delete"}
           </Button>
         </div>
       </Modal>
+
+      <AdminAddModal
+        open={adminAddOpen}
+        onClose={() => setAdminAddOpen(false)}
+        onSuccess={loadProjects}
+      />
     </DashboardLayout>
   );
 }

@@ -14,6 +14,10 @@ class Settings:
     ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")
 
+    # PIN required to unlock any data-changing action (add/edit/delete/upload).
+    # Separate from the admin login -- shared by anyone who needs to make changes.
+    ADMIN_PIN: str = os.getenv("ADMIN_PIN", "2468")
+
     # JWT
     JWT_SECRET_KEY: str = os.getenv(
         "JWT_SECRET_KEY",
