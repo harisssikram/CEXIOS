@@ -16,7 +16,7 @@ class Settings:
 
     # PIN required to unlock any data-changing action (add/edit/delete/upload).
     # Separate from the admin login -- shared by anyone who needs to make changes.
-    ADMIN_PIN: str = os.getenv("ADMIN_PIN", "2468")
+    ADMIN_PIN: str = os.getenv("ADMIN_PIN", "1357")
 
     # JWT
     JWT_SECRET_KEY: str = os.getenv(
